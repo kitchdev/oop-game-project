@@ -1,3 +1,6 @@
+
+//This Gives the player 5 lives to start the game
+var lives = 5;
 // This sectin contains some game constants. It is not super interesting
 var GAME_WIDTH = 375;
 var GAME_HEIGHT = 500;
@@ -9,17 +12,28 @@ var MAX_ENEMIES = 3;
 var PLAYER_WIDTH = 75;
 var PLAYER_HEIGHT = 54;
 
+var LIVES_WIDTH = 75;
+var LIVES_HEIGHT = 54;
+
 // These two constants keep us from using "magic numbers" in our code
 var LEFT_ARROW_CODE = 37;
 var RIGHT_ARROW_CODE = 39;
+var UP_ARROW_CODE = 38;
+var DOWN_ARROW_CODE = 40;
+var SPACE_CODE = 32;
+var ENTER_CODE = 13;
 
 // These two constants allow us to DRY
 var MOVE_LEFT = 'left';
 var MOVE_RIGHT = 'right';
+var MOVE_UP = 'up';
+var MOVE_DOWN = 'down';
+
+
 
 // Preload game images
 var images = {};
-['enemy.png', 'stars.png', 'player.png'].forEach(imgName => {
+['enemy.png', 'stars.png', 'player.png', 'bitcoin.png'].forEach(imgName => {
     var img = document.createElement('img');
     img.src = 'images/' + imgName;
     images[imgName] = img;
@@ -30,8 +44,15 @@ var images = {};
 
 
 // This section is where you will be doing most of your coding
-class Enemy {
+class Entity {
+    render(ctx) {
+        ctx.drawImage(this.sprite, this.x, this.y);
+    }
+}
+
+class Enemy extends Entity {
     constructor(xPos) {
+        super();
         this.x = xPos;
         this.y = -ENEMY_HEIGHT;
         this.sprite = images['enemy.png'];
@@ -43,14 +64,11 @@ class Enemy {
     update(timeDiff) {
         this.y = this.y + timeDiff * this.speed;
     }
-
-    render(ctx) {
-        ctx.drawImage(this.sprite, this.x, this.y);
-    }
 }
 
-class Player {
+class Player extends Entity {
     constructor() {
+        super();
         this.x = 2 * PLAYER_WIDTH;
         this.y = GAME_HEIGHT - PLAYER_HEIGHT - 10;
         this.sprite = images['player.png'];
@@ -64,10 +82,12 @@ class Player {
         else if (direction === MOVE_RIGHT && this.x < GAME_WIDTH - PLAYER_WIDTH) {
             this.x = this.x + PLAYER_WIDTH;
         }
-    }
-
-    render(ctx) {
-        ctx.drawImage(this.sprite, this.x, this.y);
+        else if (direction === MOVE_UP && this.y > 10) {
+            this.y = this.y - PLAYER_HEIGHT;
+        }
+        else if (direction === MOVE_DOWN && this.y < GAME_HEIGHT - PLAYER_HEIGHT - 10) {
+            this.y = this.y + PLAYER_HEIGHT;
+        }
     }
 }
 
@@ -87,6 +107,8 @@ class Engine {
 
         // Setup enemies, making sure there are always three
         this.setupEnemies();
+        // sets up the new lives function
+        this.newLives();
 
         // Setup the <canvas> element where we will be drawing
         var canvas = document.createElement('canvas');
@@ -104,6 +126,16 @@ class Engine {
      The game allows for 5 horizontal slots where an enemy can be present.
      At any point in time there can be at most MAX_ENEMIES enemies otherwise the game would be impossible
      */
+    newLives() {
+
+        this.x = xPos;
+        this.y = -LIVES_HEIGHT;
+        this.sprite = images['bitcoin.png'];
+        this.speed = Math.random() / 2 + 0.25;
+    }
+
+
+
     setupEnemies() {
         if (!this.enemies) {
             this.enemies = [];
@@ -120,7 +152,7 @@ class Engine {
 
         var enemySpot;
         // Keep looping until we find a free enemy spot at random
-        while (!enemySpot || this.enemies[enemySpot]) {
+        while (!enemySpots || this.enemies[enemySpot]) {
             enemySpot = Math.floor(Math.random() * enemySpots);
         }
 
@@ -128,8 +160,11 @@ class Engine {
     }
 
     // This method kicks off the game
+
     start() {
-        this.score = 0;
+
+
+        this.score = 1;
         this.lastFrame = Date.now();
 
         // Listen for keyboard left/right and update the player
@@ -140,9 +175,19 @@ class Engine {
             else if (e.keyCode === RIGHT_ARROW_CODE) {
                 this.player.move(MOVE_RIGHT);
             }
+            else if (e.keyCode === UP_ARROW_CODE) {
+                this.player.move(MOVE_UP);
+            }
+            else if (e.keyCode === DOWN_ARROW_CODE) {
+                this.player.move(MOVE_DOWN);
+            }
+            else if (e.keyCode === ENTER_CODE) {
+                location.reload();
+            }
         });
 
         this.gameLoop();
+
     }
 
     /*
@@ -159,6 +204,12 @@ class Engine {
         // Check how long it's been since last frame
         var currentFrame = Date.now();
         var timeDiff = currentFrame - this.lastFrame;
+
+        //drops a life at random 
+        this.newLives();
+
+
+
 
         // Increase the score!
         this.score += timeDiff;
@@ -180,7 +231,7 @@ class Engine {
         this.setupEnemies();
 
         // Check if player is dead
-        if (this.isPlayerDead()) {
+        if (this.isPlayerDead() === true) {
             // If they are dead, then it's game over!
             this.ctx.font = 'bold 30px Impact';
             this.ctx.fillStyle = '#ffffff';
@@ -191,23 +242,52 @@ class Engine {
             this.ctx.font = 'bold 30px Impact';
             this.ctx.fillStyle = '#ffffff';
             this.ctx.fillText(this.score, 5, 30);
-
             // Set the time marker and redraw
             this.lastFrame = Date.now();
             requestAnimationFrame(this.gameLoop);
         }
     }
 
+
+
     isPlayerDead() {
         // TODO: fix this function!
+
+         
+
+            for (var i = 0; i < this.enemies.length; i++) {
+                if ((this.enemies[i] !== undefined && this.player.x === this.enemies[i].x
+                ) && (this.player.y < this.enemies[i].y + ENEMY_HEIGHT
+                    && this.player.y + PLAYER_HEIGHT > this.enemies[i].y)) {
+                 delete this.enemies[i] && lives--;
+
+                 if (lives === 0){
+                     return true;
+                 }
+                }
+
+            }
+            
+ 
+      
         return false;
+
+
+
     }
+
 }
-
-
 
 
 
 // This section will start the game
 var gameEngine = new Engine(document.getElementById('app'));
-gameEngine.start();
+
+
+// This will start the game with the SPACE key
+document.addEventListener('keydown', e => {
+    if (e.keyCode === SPACE_CODE) {
+        gameEngine.start();
+    }
+})
+
