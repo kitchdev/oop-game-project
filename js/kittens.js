@@ -5,6 +5,10 @@ var lives = 5;
 var GAME_WIDTH = 375;
 var GAME_HEIGHT = 500;
 
+var NEWLIFE_WIDTH = 75;
+var NEWLIFE_HEIGHT = 156;
+var MAX_LIVES = 1;
+
 var ENEMY_WIDTH = 75;
 var ENEMY_HEIGHT = 156;
 var MAX_ENEMIES = 3;
@@ -92,7 +96,21 @@ class Player extends Entity {
 }
 
 
+class NewLives extends Enemy {
+    constructor(xPos) {
+        super();
+        this.x = xPos;
+        this.y = NEWLIFE_HEIGHT;
+        this.sprite = images['bitcoin.png'];
 
+        // Each enemy should have a different speed
+        this.speed = Math.random() / 2 + 0.25;
+    }
+
+    update(timeDiff) {
+        this.y = this.y + timeDiff * this.speed;
+    }
+}
 
 
 /*
@@ -108,7 +126,7 @@ class Engine {
         // Setup enemies, making sure there are always three
         this.setupEnemies();
         // sets up the new lives function
-        this.newLives();
+        this.setupNewLives();
 
         // Setup the <canvas> element where we will be drawing
         var canvas = document.createElement('canvas');
@@ -126,14 +144,18 @@ class Engine {
      The game allows for 5 horizontal slots where an enemy can be present.
      At any point in time there can be at most MAX_ENEMIES enemies otherwise the game would be impossible
      */
-    newLives() {
+    // 
 
-        this.x = xPos;
-        this.y = -LIVES_HEIGHT;
-        this.sprite = images['bitcoin.png'];
-        this.speed = Math.random() / 2 + 0.25;
+    setupNewLives() {
+        if (!this.newLives) {
+            this.newLives = [];
+        }
+
+        while (this.newLives.filter(e => !!e).length < MAX_LIVES) {
+            console.log('-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=');
+            this.addNewLife();
+        }
     }
-
 
 
     setupEnemies() {
@@ -157,6 +179,19 @@ class Engine {
         }
 
         this.enemies[enemySpot] = new Enemy(enemySpot * ENEMY_WIDTH);
+    }
+
+    addNewLife() {
+        var newLifeSpots = GAME_WIDTH / NEWLIFE_WIDTH;
+
+        var newLifeSpot;
+        // Keep looping until we find a free enemy spot at random
+        while (!newLifeSpots || this.enemies[newLifeSpot]) {
+            newLifeSpot = Math.floor(Math.random() * newLifeSpots);
+            console.log(newLifeSpot);
+        }
+
+        this.newLives[newLifeSpot] = new NewLives(newLifeSpot * NEWLIFE_WIDTH);
     }
 
     // This method kicks off the game
@@ -205,11 +240,8 @@ class Engine {
         var currentFrame = Date.now();
         var timeDiff = currentFrame - this.lastFrame;
 
-        //drops a life at random 
-        this.newLives();
 
-
-
+        
 
         // Increase the score!
         this.score += timeDiff;
@@ -217,8 +249,12 @@ class Engine {
         // Call update on all enemies
         this.enemies.forEach(enemy => enemy.update(timeDiff));
 
+        //update new lives
+        this.newLives.forEach(newLife => newLife.update(timeDiff));
+
         // Draw everything!
         this.ctx.drawImage(images['stars.png'], 0, 0); // draw the star bg
+        this.newLives.forEach(newLife => newLife.render(this.ctx));
         this.enemies.forEach(enemy => enemy.render(this.ctx)); // draw the enemies
         this.player.render(this.ctx); // draw the player
 
@@ -228,7 +264,14 @@ class Engine {
                 delete this.enemies[enemyIdx];
             }
         });
+
+        this.newLives.forEach((newLives, newLivesIdx) => {
+            if (newLives.y > GAME_HEIGHT) {
+                delete this.enemies[newLivesIdx];
+            }
+        });
         this.setupEnemies();
+        this.setupNewLives();
 
         // Check if player is dead
         if (this.isPlayerDead() === true) {
@@ -252,8 +295,6 @@ class Engine {
 
     isPlayerDead() {
         // TODO: fix this function!
-
-         
 
             for (var i = 0; i < this.enemies.length; i++) {
                 if ((this.enemies[i] !== undefined && this.player.x === this.enemies[i].x
@@ -282,12 +323,14 @@ class Engine {
 
 // This section will start the game
 var gameEngine = new Engine(document.getElementById('app'));
-
+var count = 0;
 
 // This will start the game with the SPACE key
 document.addEventListener('keydown', e => {
-    if (e.keyCode === SPACE_CODE) {
+    if (e.keyCode === SPACE_CODE && count < 1) {
+        count++;
         gameEngine.start();
     }
 })
 
+ 
